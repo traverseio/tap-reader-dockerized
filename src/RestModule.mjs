@@ -17,8 +17,7 @@ export default class RestModule {
     this.tracManager = tracManager;
     this.fastify = Fastify({ logger: false });
 
-    if(config.get("enableRestApiDocs")) {
-
+    if (config.get("enableRestApiDocs")) {
       // Initialize routes
       this.fastify.register(swagger, {
         routePrefix: "/docs",
@@ -64,42 +63,42 @@ export default class RestModule {
         },
         transformSpecificationClone: true,
       });
-
     }
 
     // Read cache control settings
-    const cacheControlConfig = config.get('restCacheControl');
-    const restHeaders = config.get('restHeaders');
+    const cacheControlConfig = config.get("restCacheControl");
+    const restHeaders = config.get("restHeaders");
 
-    this.fastify.addHook('onSend', (request, reply, payload, done) => {
-
+    this.fastify.addHook("onSend", (request, reply, payload, done) => {
       const maxAge = cacheControlConfig.maxAge;
-      const visibility = cacheControlConfig.public ? 'public' : 'private';
+      const visibility = cacheControlConfig.public ? "public" : "private";
 
       // Set cache control header
       if (
-        request.routeOptions.url == '/getSyncStatus' || 
-        request.routeOptions.url == '/getReorgs' || 
-        request.routeOptions.url == '/getCurrentBlock' ) {
-        reply.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        request.routeOptions.url == "/getSyncStatus" ||
+        request.routeOptions.url == "/getReorgs" ||
+        request.routeOptions.url == "/getCurrentBlock"
+      ) {
+        reply.header(
+          "Cache-Control",
+          "no-store, no-cache, must-revalidate, proxy-revalidate"
+        );
       } else {
-        reply.header('Cache-Control', `${visibility}, max-age=${maxAge}`);
+        reply.header("Cache-Control", `${visibility}, max-age=${maxAge}`);
       }
       // Set each header from the configuration
-      restHeaders.forEach(header => {
+      restHeaders.forEach((header) => {
         reply.header(header.name, header.value);
       });
 
       done();
     });
 
-
     this.initializeRoutes();
   }
 
   initializeRoutes() {
     this.fastify.register((fastify, opts, done) => {
-
       fastify.get(
         "/getSyncStatus",
         {
@@ -109,36 +108,41 @@ export default class RestModule {
           },
         },
         async (request, reply) => {
-          reply.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-          if(this.tracManager.blockDownloader){
+          reply.header(
+            "Cache-Control",
+            "no-store, no-cache, must-revalidate, proxy-revalidate"
+          );
+          if (this.tracManager.blockDownloader) {
             reply.send({ result: this.tracManager.blockDownloader.progress });
-          }else{
+          } else {
             reply.send({ result: 0 });
           }
-      });
-
+        }
+      );
 
       fastify.get(
         "/getReorgs",
         {
           schema: {
-            description: "Get a list of reorgs that occurred on the connected writer since its existence.",
+            description:
+              "Get a list of reorgs that occurred on the connected writer since its existence.",
             tags: ["Node"],
           },
         },
         async (request, reply) => {
-          reply.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+          reply.header(
+            "Cache-Control",
+            "no-store, no-cache, must-revalidate, proxy-revalidate"
+          );
           try {
-            const result =
-                await this.tracManager.tapProtocol.getReorgs();
+            const result = await this.tracManager.tapProtocol.getReorgs();
             reply.send({ result });
-
           } catch (e) {
             console.log(e);
             reply.status(500).send({ error: "Internal Server Error" });
           }
         }
-    );
+      );
 
       fastify.get(
         "/getCurrentBlock",
@@ -149,197 +153,217 @@ export default class RestModule {
           },
         },
         async (request, reply) => {
-          reply.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+          reply.header(
+            "Cache-Control",
+            "no-store, no-cache, must-revalidate, proxy-revalidate"
+          );
           try {
-            const result =
-                await this.tracManager.tapProtocol.getCurrentBlock();
+            const result = await this.tracManager.tapProtocol.getCurrentBlock();
             reply.send({ result });
-
           } catch (e) {
             console.log(e);
             reply.status(500).send({ error: "Internal Server Error" });
           }
         }
-    );
-
-      fastify.get(
-          "/getDmtMintHoldersHistoryListLength/:inscription_id",
-          {
-            schema: {
-              description: "Returns the amount of holder changes for a given DMT Mint.",
-              tags: ["DMT"],
-              params: {
-                type: "object",
-                required: ["inscription_id"],
-                properties: {
-                  inscription_id: { type: "string" },
-                },
-              },
-            },
-          },
-          async (request, reply) => {
-            try {
-              const result = await this.tracManager.tapProtocol.getDmtMintHoldersHistoryListLength(request.params.inscription_id);
-              reply.send({ result });
-            } catch (e) {
-              reply.status(500).send({ error: "Internal Server Error" });
-            }
-          }
       );
 
       fastify.get(
-          "/getDmtMintHoldersHistoryList/:inscription_id",
-          {
-            schema: {
-              description: "Returns the amount of holder changes for a given DMT Mint.",
-              tags: ["DMT"],
-              params: {
-                type: "object",
-                required: ["inscription_id"],
-                properties: {
-                  inscription_id: { type: "string" },
-                },
-              },
-              querystring: {
-                type: "object",
-                properties: {
-                  offset: { type: "integer", default: 0 },
-                  max: { type: "integer", default: 500 },
-                },
+        "/getDmtMintHoldersHistoryListLength/:inscription_id",
+        {
+          schema: {
+            description:
+              "Returns the amount of holder changes for a given DMT Mint.",
+            tags: ["DMT"],
+            params: {
+              type: "object",
+              required: ["inscription_id"],
+              properties: {
+                inscription_id: { type: "string" },
               },
             },
           },
-          async (request, reply) => {
-            try {
-              let { offset, max } = request.query;
-              offset = offset ? offset : 0;
-              max = max ? max : 500;
-              const result = await this.tracManager.tapProtocol.getDmtMintHoldersHistoryList(
-                  request.params.inscription_id,
-                  offset,
-                  max
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getDmtMintHoldersHistoryListLength(
+                request.params.inscription_id
               );
-              reply.send({ result });
-            } catch (e) {
-              console.error(e);
-              reply.status(500).send({ error: "Internal Server Error" });
-            }
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
           }
+        }
       );
 
       fastify.get(
-          "/getDmtMintHolder/:inscription_id",
-          {
-            schema: {
-              description: "Returns a history object with element, owner and block data.",
-              tags: ["DMT"],
-              params: {
-                type: "object",
-                required: ["inscription_id"],
-                properties: {
-                  inscription_id: { type: "string" },
-                },
+        "/getDmtMintHoldersHistoryList/:inscription_id",
+        {
+          schema: {
+            description:
+              "Returns the amount of holder changes for a given DMT Mint.",
+            tags: ["DMT"],
+            params: {
+              type: "object",
+              required: ["inscription_id"],
+              properties: {
+                inscription_id: { type: "string" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
               },
             },
           },
-          async (request, reply) => {
-            try {
-              const result = await this.tracManager.tapProtocol.getDmtMintHolder(request.params.inscription_id);
-              reply.send({ result });
-            } catch (e) {
-              reply.status(500).send({ error: "Internal Server Error" });
-            }
-          }
-      );
-
-      fastify.get(
-          "/getDmtMintHolderByBlock/:block",
-          {
-            schema: {
-              description: "Returns a history object with element, owner and block data but based on a given block instead of an inscription id.",
-              tags: ["DMT"],
-              params: {
-                type: "object",
-                required: ["block"],
-                properties: {
-                  block: { type: "integer" },
-                },
-              },
-            },
-          },
-          async (request, reply) => {
-            try {
-              const result = await this.tracManager.tapProtocol.getDmtMintHolderByBlock(request.params.block);
-              reply.send({ result });
-            } catch (e) {
-              reply.status(500).send({ error: "Internal Server Error" });
-            }
-          }
-      );
-
-      fastify.get(
-          "/getDmtMintWalletHistoricListLength/:address",
-          {
-            schema: {
-              description: "Returns the amount of HISTORIC DMT Mints of an address.",
-              tags: ["DMT"],
-              params: {
-                type: "object",
-                required: ["address"],
-                properties: {
-                  address: { type: "string" },
-                },
-              },
-            },
-          },
-          async (request, reply) => {
-            try {
-              const result = await this.tracManager.tapProtocol.getDmtMintWalletHistoricListLength(request.params.address);
-              reply.send({ result });
-            } catch (e) {
-              reply.status(500).send({ error: "Internal Server Error" });
-            }
-          }
-      );
-
-      fastify.get(
-          "/getDmtMintWalletHistoricList/:address",
-          {
-            schema: {
-              description: "Returns the HISTORICAL ownership of an address of DMT Mints.",
-              tags: ["DMT"],
-              params: {
-                type: "object",
-                required: ["address"],
-                properties: {
-                  address: { type: "string" },
-                },
-              },
-              querystring: {
-                type: "object",
-                properties: {
-                  offset: { type: "integer", default: 0 },
-                  max: { type: "integer", default: 500 },
-                },
-              },
-            },
-          },
-          async (request, reply) => {
-            try {
-              let { offset, max } = request.query;
-              offset = offset ? offset : 0;
-              max = max ? max : 500;
-              const result = await this.tracManager.tapProtocol.getDmtMintWalletHistoricList(
-                  request.params.address,
-                  offset,
-                  max
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+            const result =
+              await this.tracManager.tapProtocol.getDmtMintHoldersHistoryList(
+                request.params.inscription_id,
+                offset,
+                max
               );
-              reply.send({ result });
-            } catch (e) {
-              console.error(e);
-              reply.status(500).send({ error: "Internal Server Error" });
-            }
+            reply.send({ result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
           }
+        }
+      );
+
+      fastify.get(
+        "/getDmtMintHolder/:inscription_id",
+        {
+          schema: {
+            description:
+              "Returns a history object with element, owner and block data.",
+            tags: ["DMT"],
+            params: {
+              type: "object",
+              required: ["inscription_id"],
+              properties: {
+                inscription_id: { type: "string" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result = await this.tracManager.tapProtocol.getDmtMintHolder(
+              request.params.inscription_id
+            );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getDmtMintHolderByBlock/:block",
+        {
+          schema: {
+            description:
+              "Returns a history object with element, owner and block data but based on a given block instead of an inscription id.",
+            tags: ["DMT"],
+            params: {
+              type: "object",
+              required: ["block"],
+              properties: {
+                block: { type: "integer" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getDmtMintHolderByBlock(
+                request.params.block
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getDmtMintWalletHistoricListLength/:address",
+        {
+          schema: {
+            description:
+              "Returns the amount of HISTORIC DMT Mints of an address.",
+            tags: ["DMT"],
+            params: {
+              type: "object",
+              required: ["address"],
+              properties: {
+                address: { type: "string" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getDmtMintWalletHistoricListLength(
+                request.params.address
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getDmtMintWalletHistoricList/:address",
+        {
+          schema: {
+            description:
+              "Returns the HISTORICAL ownership of an address of DMT Mints.",
+            tags: ["DMT"],
+            params: {
+              type: "object",
+              required: ["address"],
+              properties: {
+                address: { type: "string" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+            const result =
+              await this.tracManager.tapProtocol.getDmtMintWalletHistoricList(
+                request.params.address,
+                offset,
+                max
+              );
+            reply.send({ result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
       );
 
       fastify.get(
@@ -674,11 +698,8 @@ export default class RestModule {
                       properties: {
                         address: { type: "string" },
                         balance: { type: "string" },
-                        transferable: { 
-                          oneOf: [
-                            { type: "string" },
-                            { type: "null" }
-                          ]
+                        transferable: {
+                          oneOf: [{ type: "string" }, { type: "null" }],
                         },
                       },
                     },
@@ -1402,7 +1423,8 @@ export default class RestModule {
         "/getAccountReceiveList/:address/:ticker",
         {
           schema: {
-            description: "Retrieve a list of received transactions for a specific address and ticker",
+            description:
+              "Retrieve a list of received transactions for a specific address and ticker",
             tags: ["Transactions"],
             params: {
               type: "object",
@@ -1448,19 +1470,19 @@ export default class RestModule {
         async (request, reply) => {
           let { offset, max } = request.query;
           try {
-            const result = await this.tracManager.tapProtocol.getAccountReceiveList(
-              request.params.address,
-              request.params.ticker,
-              offset,
-              max
-            );
-            reply.send({result});
+            const result =
+              await this.tracManager.tapProtocol.getAccountReceiveList(
+                request.params.address,
+                request.params.ticker,
+                offset,
+                max
+              );
+            reply.send({ result });
           } catch (e) {
             reply.status(500).send({ error: "Internal Server Error" });
           }
         }
       );
-
 
       fastify.get(
         "/getAccountTradesList/:address/:ticker",
@@ -2961,56 +2983,62 @@ export default class RestModule {
       );
 
       // getTradesFilledList
-      fastify.get("/getTradesFilledList", {
-        schema: {
-          description: "Retrieve a list of trades that have been filled",
-          tags: ["Trade"],
-          querystring: {
-            type: 'object',
-            properties: {
-              offset: { type: 'integer', default: 0 },
-              max: { type: 'integer', default: 500 }
-            }
+      fastify.get(
+        "/getTradesFilledList",
+        {
+          schema: {
+            description: "Retrieve a list of trades that have been filled",
+            tags: ["Trade"],
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+            //   response: {
+            //     200: {
+            //       description: 'Successful response',
+            //       type: 'object',
+            //       properties: {
+            //         result: {
+            //           type: 'array',
+            //           items: { type: 'string' } // TODO: Specify the structure of each trade record
+            //         }
+            //       }
+            //     },
+            //     500: {
+            //       description: 'Internal server error',
+            //       type: 'object',
+            //       properties: {
+            //         error: { type: 'string' }
+            //       }
+            //     }
+            //   }
           },
-        //   response: {
-        //     200: {
-        //       description: 'Successful response',
-        //       type: 'object',
-        //       properties: {
-        //         result: { 
-        //           type: 'array',
-        //           items: { type: 'string' } // TODO: Specify the structure of each trade record
-        //         }
-        //       }
-        //     },
-        //     500: {
-        //       description: 'Internal server error',
-        //       type: 'object',
-        //       properties: {
-        //         error: { type: 'string' }
-        //       }
-        //     }
-        //   }
+        },
+        async (request, reply) => {
+          let { offset, max } = request.query;
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getTradesFilledList(
+                offset,
+                max
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
         }
-      }, async (request, reply) => {
-        let { offset, max } = request.query;
-        try {
-          const result = await this.tracManager.tapProtocol.getTradesFilledList(
-            offset,
-            max
-          );
-          reply.send({ result });
-        } catch (e) {
-          reply.status(500).send({ error: "Internal Server Error" });
-        }
-      });
+      );
 
-        // getTickerSentListLength
+      // getTickerSentListLength
       fastify.get(
         "/getTickerSentListLength/:ticker",
         {
           schema: {
-            description: "Get the total number of sent transactions for a given ticker",
+            description:
+              "Get the total number of sent transactions for a given ticker",
             tags: ["Transactions"],
             params: {
               type: "object",
@@ -3096,12 +3124,11 @@ export default class RestModule {
         async (request, reply) => {
           let { offset, max } = request.query;
           try {
-            const result =
-              await this.tracManager.tapProtocol.getTickerSentList(
-                request.params.ticker,
-                offset,
-                max
-              );
+            const result = await this.tracManager.tapProtocol.getTickerSentList(
+              request.params.ticker,
+              offset,
+              max
+            );
             reply.send({ result });
           } catch (e) {
             reply.status(500).send({ error: "Internal Server Error" });
@@ -3110,35 +3137,40 @@ export default class RestModule {
       );
 
       // getSentListLength
-      fastify.get("/getSentListLength", {
-        schema: {
-          description: "Get the total length of the sent transactions list",
-          tags: ["Transactions"],
-          response: {
-            200: {
-              description: 'Successful response',
-              type: 'object',
-              properties: {
-                result: { type: 'number' }
-              }
+      fastify.get(
+        "/getSentListLength",
+        {
+          schema: {
+            description: "Get the total length of the sent transactions list",
+            tags: ["Transactions"],
+            response: {
+              200: {
+                description: "Successful response",
+                type: "object",
+                properties: {
+                  result: { type: "number" },
+                },
+              },
+              500: {
+                description: "Internal server error",
+                type: "object",
+                properties: {
+                  error: { type: "string" },
+                },
+              },
             },
-            500: {
-              description: 'Internal server error',
-              type: 'object',
-              properties: {
-                error: { type: 'string' }
-              }
-            }
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getSentListLength();
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
           }
         }
-      }, async (request, reply) => {
-        try {
-          const result = await this.tracManager.tapProtocol.getSentListLength();
-          reply.send({ result });
-        } catch (e) {
-          reply.status(500).send({ error: "Internal Server Error" });
-        }
-      });
+      );
 
       // getSentList
       fastify.get(
@@ -3190,44 +3222,49 @@ export default class RestModule {
       );
 
       // getAccumulator
-      fastify.get("/getAccumulator/:inscription", {
-        schema: {
-          description: "Retrieve the accumulator object for a given inscription",
-          tags: ["Accumulator"],
-          params: {
-            type: 'object',
-            required: ['inscription'],
-            properties: {
-              inscription: { type: 'string' }
-            }
+      fastify.get(
+        "/getAccumulator/:inscription",
+        {
+          schema: {
+            description:
+              "Retrieve the accumulator object for a given inscription",
+            tags: ["Accumulator"],
+            params: {
+              type: "object",
+              required: ["inscription"],
+              properties: {
+                inscription: { type: "string" },
+              },
+            },
+            //   response: {
+            //     200: {
+            //       description: 'Successful response',
+            //       type: 'object',
+            //       properties: {
+            //         result: { type: 'object' } // TODO: Specify the structure of the accumulator object
+            //       }
+            //     },
+            //     500: {
+            //       description: 'Internal server error',
+            //       type: 'object',
+            //       properties: {
+            //         error: { type: 'string' }
+            //       }
+            //     }
+            //   }
           },
-        //   response: {
-        //     200: {
-        //       description: 'Successful response',
-        //       type: 'object',
-        //       properties: {
-        //         result: { type: 'object' } // TODO: Specify the structure of the accumulator object
-        //       }
-        //     },
-        //     500: {
-        //       description: 'Internal server error',
-        //       type: 'object',
-        //       properties: {
-        //         error: { type: 'string' }
-        //       }
-        //     }
-        //   }
+        },
+        async (request, reply) => {
+          try {
+            const result = await this.tracManager.tapProtocol.getAccumulator(
+              request.params.inscription
+            );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
         }
-      }, async (request, reply) => {
-        try {
-          const result = await this.tracManager.tapProtocol.getAccumulator(
-            request.params.inscription
-          );
-          reply.send({ result });
-        } catch (e) {
-          reply.status(500).send({ error: "Internal Server Error" });
-        }
-      });
+      );
 
       // getAccountAccumulatorListLength
       fastify.get(
@@ -3335,36 +3372,40 @@ export default class RestModule {
       );
 
       // getAccumulatorListLength
-      fastify.get("/getAccumulatorListLength", {
-        schema: {
-          description: "Retrieve the total length of the accumulator list",
-          tags: ["Accumulator"],
-          response: {
-            200: {
-              description: 'Successful response',
-              type: 'object',
-              properties: {
-                result: { type: 'number' }
-              }
+      fastify.get(
+        "/getAccumulatorListLength",
+        {
+          schema: {
+            description: "Retrieve the total length of the accumulator list",
+            tags: ["Accumulator"],
+            response: {
+              200: {
+                description: "Successful response",
+                type: "object",
+                properties: {
+                  result: { type: "number" },
+                },
+              },
+              500: {
+                description: "Internal server error",
+                type: "object",
+                properties: {
+                  error: { type: "string" },
+                },
+              },
             },
-            500: {
-              description: 'Internal server error',
-              type: 'object',
-              properties: {
-                error: { type: 'string' }
-              }
-            }
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getAccumulatorListLength();
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
           }
         }
-      }, async (request, reply) => {
-        try {
-          const result =
-            await this.tracManager.tapProtocol.getAccumulatorListLength();
-          reply.send({ result });
-        } catch (e) {
-          reply.status(500).send({ error: "Internal Server Error" });
-        }
-      });
+      );
 
       // getAccumulatorList
       fastify.get(
@@ -3523,8 +3564,9 @@ export default class RestModule {
 
   async start() {
     try {
+      const host = config.get("host") || "0.0.0.0"; // Defaulting to 0.0.0.0 if not configured
       const port = config.get("restPort") || 3000; // Defaulting to 3000 if not configured
-      await this.fastify.listen({ port });
+      await this.fastify.listen({ host, port });
       // this.fastify.swagger();
       console.log(`REST server listening on port ${port}`);
     } catch (err) {

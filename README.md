@@ -98,6 +98,7 @@ Just swap out the given domain in that endpoint example above with your websocke
 {
     "enableRest": true,
     "enableRestApiDocs": true,
+    "host": "0.0.0.0",
     "restPort": 5099,
     "restCacheControl": {
         "maxAge": 3600,

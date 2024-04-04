@@ -10,6 +10,8 @@ export default class WebsocketModule {
   constructor(tracManager) {
     this.tracManager = tracManager;
 
+    // TODO: use correct host for WS
+    this.host = config.get("host") | "0.0.0.0";
     this.socket_port = config.get("websocketPort");
     this.httpServer = createServer();
     this.httpServer.maxConnections = 1000;
@@ -28,14 +30,13 @@ export default class WebsocketModule {
 
         try {
           switch (cmd.func) {
-
             case "dmtMintHolder":
               if (cmd.args.length != 1) {
                 this.invalidCmd(cmd, socket);
                 return;
               }
               result = await this.tracManager.tapProtocol.getDmtMintHolder(
-                  cmd.args[0]
+                cmd.args[0]
               );
               break;
 
@@ -44,9 +45,10 @@ export default class WebsocketModule {
                 this.invalidCmd(cmd, socket);
                 return;
               }
-              result = await this.tracManager.tapProtocol.getDmtMintHolderByBlock(
+              result =
+                await this.tracManager.tapProtocol.getDmtMintHolderByBlock(
                   cmd.args[0]
-              );
+                );
               break;
 
             case "reorgs":
@@ -54,8 +56,7 @@ export default class WebsocketModule {
                 this.invalidCmd(cmd, socket);
                 return;
               }
-              result =
-                  await this.tracManager.tapProtocol.getReorgs();
+              result = await this.tracManager.tapProtocol.getReorgs();
               break;
 
             case "currentBlock":
@@ -63,18 +64,18 @@ export default class WebsocketModule {
                 this.invalidCmd(cmd, socket);
                 return;
               }
-              result =
-                  await this.tracManager.tapProtocol.getCurrentBlock();
+              result = await this.tracManager.tapProtocol.getCurrentBlock();
               break;
-  
+
             case "dmtMintHoldersHistoryListLength":
               if (cmd.args.length != 1) {
                 this.invalidCmd(cmd, socket);
                 return;
               }
-              result = await this.tracManager.tapProtocol.getDmtMintHoldersHistoryListLength(
+              result =
+                await this.tracManager.tapProtocol.getDmtMintHoldersHistoryListLength(
                   cmd.args[0]
-              );
+                );
               break;
 
             case "dmtMintHoldersHistoryList":
@@ -82,11 +83,12 @@ export default class WebsocketModule {
                 this.invalidCmd(cmd, socket);
                 return;
               }
-              result = await this.tracManager.tapProtocol.getDmtMintHoldersHistoryList(
+              result =
+                await this.tracManager.tapProtocol.getDmtMintHoldersHistoryList(
                   cmd.args[0],
                   cmd.args[1],
                   cmd.args[2]
-              );
+                );
               break;
 
             case "dmtMintWalletHistoricListLength":
@@ -94,9 +96,10 @@ export default class WebsocketModule {
                 this.invalidCmd(cmd, socket);
                 return;
               }
-              result = await this.tracManager.tapProtocol.getDmtMintWalletHistoricListLength(
+              result =
+                await this.tracManager.tapProtocol.getDmtMintWalletHistoricListLength(
                   cmd.args[0]
-              );
+                );
               break;
 
             case "dmtMintWalletHistoricList":
@@ -104,13 +107,13 @@ export default class WebsocketModule {
                 this.invalidCmd(cmd, socket);
                 return;
               }
-              result = await this.tracManager.tapProtocol.getDmtMintWalletHistoricList(
+              result =
+                await this.tracManager.tapProtocol.getDmtMintWalletHistoricList(
                   cmd.args[0],
                   cmd.args[1],
                   cmd.args[2]
-              );
+                );
               break;
-
 
             case "deployments":
               if (cmd.args.length != 2) {
