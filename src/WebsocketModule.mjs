@@ -10,6 +10,8 @@ export default class WebsocketModule {
   constructor(tracManager) {
     this.tracManager = tracManager;
 
+    // TODO: use correct host for WS
+    this.host = config.get("host") | "0.0.0.0";
     this.socket_port = config.get("websocketPort");
     this.httpServer = createServer();
     this.httpServer.maxConnections = 1000;
