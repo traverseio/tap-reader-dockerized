@@ -1,6 +1,7 @@
 import Corestore from "corestore";
 import Hyperswarm from "hyperswarm";
 import Hyperbee from "hyperbee";
+import HyperDHT from "hyperdht";
 import goodbye from "graceful-goodbye";
 import config from "config";
 import figlet from "figlet";
@@ -29,11 +30,19 @@ export default class TracManager {
    */
   restServer;
   constructor() {
+    const dht = new HyperDHT({
+      // Optionally overwrite the default bootstrap servers, just need to be an array of any known dht node(s)
+      // Defaults to ['node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737']
+      bootstrap: ['116.202.214.143:10001','116.202.214.149:10001','node1.hyperdht.org:49737', 'node2.hyperdht.org:49737', 'node3.hyperdht.org:49737']
+    });
     this.isConnected = false;
     this.store = new Corestore("./tapstore");
-    this.swarm = new Hyperswarm();
+    this.swarm = new Hyperswarm({maxPeers : 256, maxParallel: 128, dht : dht});
     this.bee = null;
     this.tapProtocol = new TapProtocol(this);
+    this.blocked_connections = [];
+    this.blocked_peers = [];
+    this.peerCount = 1;
 
     goodbye(() => {
       this.swarm.destroy();
@@ -58,8 +67,6 @@ export default class TracManager {
     // Initialize Corestore and Hyperswarm
     console.log(figlet.textSync("Trac Core Reader"));
     console.log("Protocol: Ordinals/TAP");
-
-    this.banlist = {};
 
     this.core = this.store.get({
       key: process.argv[2]
@@ -112,96 +119,79 @@ export default class TracManager {
    */
   async initHyperswarm(server, client) {
     this.swarm.on("connection", (connection, peerInfo) => {
-      this.isConnected = true;
+
       let _this = this;
-      let pubKey = connection.remotePublicKey.toString("hex");
-      let banned = false;
+      _this.peerCount += 1;
 
-      if(typeof this.banlist[pubKey] !== 'undefined')
-      {
-        let now = Math.floor(Date.now() / 1000);
-        let maxTries = 3;
-        let timeoutLimit = 3600;
-
-        if(_this.banlist[pubKey].b)
-        {
-          banned = true;
-          peerInfo.ban(true);
-          console.log('Peer is banned', pubKey);
-        }
-
-        if(!banned && now - _this.banlist[pubKey].ts < timeoutLimit &&
-            _this.banlist[pubKey].d >= maxTries)
-        {
-          banned = true;
-          peerInfo.ban(true);
-          _this.banlist[pubKey].b = true;
-          _this.banlist[pubKey].u = now + timeoutLimit;
-          console.log('Banned', pubKey, 'due to repeated inactivity. Earliest unban at timestamp', now + timeoutLimit);
-        }
-
-        if(!banned && now - _this.banlist[pubKey].ts >= timeoutLimit &&
-            _this.banlist[pubKey].d <= maxTries)
-        {
-          delete this.banlist[pubKey];
-          console.log('Lifted ban risk', pubKey, 'due to ban timeout');
-        }
-
-        if(banned && now >= _this.banlist[pubKey].u)
-        {
-          banned = false;
-          peerInfo.ban(false);
-          delete _this.banlist[pubKey];
-          console.log('Unbanned', pubKey, 'due to probation period ending. Timestamp', _this.banlist[pubKey].u);
-        }
+      if (_this.peerCount >= 25) {
+        _this.peerCount = 1;
       }
 
-      console.log(
-          "Connected to peer:",
-          connection.remotePublicKey.toString("hex")
-      );
-
-      if(!banned)
-      {
-        this.core.replicate(connection);
-      }
-
-      connection.on("close", () =>
-          console.log(
-              "Connection closed with peer:",
-              connection.remotePublicKey.toString("hex")
-          )
+      connection.on("close", function() {
+            if (_this.peerCount < 1) {
+              _this.peerCount = 1;
+            } else {
+              _this.peerCount += 1;
+            }
+            _this = null;
+            console.log(
+                "Connection closed with peer:",
+                connection.remotePublicKey.toString("hex")
+            )
+          }
       );
 
       connection.on("error", function(error) {
+            console.log(
+                "Connection error with peer:",
+                connection.remotePublicKey.toString("hex"),
+                error
+            )
+          }
+      );
 
-          console.log(
-              "Connection error with peer:",
-              connection.remotePublicKey.toString("hex"),
-              error
-          )
+      setTimeout(function(){
+        if(_this === null) return;
+        for(let key in _this.core.peers){
+          let peer = _this.core.replicator.peers[key];
 
-          if(typeof error.code !== 'undefined' &&
-              ( error.code.toLowerCase().includes('etimedout') || error.code.toLowerCase().includes('econnreset') ))
-          {
-            let pubKey = connection.remotePublicKey.toString("hex");
-
-            if(typeof _this.banlist[pubKey] === 'undefined')
-            {
-              _this.banlist[pubKey] = {
-                ts : Math.floor(Date.now() / 1000),
-                d : 0,
-                b : false,
-                u : 0
-              }
+          if(_this.core.length !== 0 &&
+              peer.remoteLength !== 0 &&
+              peer.length !== 0 &&
+              peer.remoteLength !== _this.core.length &&
+              !_this.blocked_peers.includes(peer.remotePublicKey.toString("hex"))){
+            let ban_peer = _this.swarm._upsertPeer(peer.remotePublicKey, null)
+            ban_peer.ban(true);
+            _this.swarm.leavePeer(peer.remotePublicKey);
+            _this.swarm.explicitPeers.delete(ban_peer);
+            _this.swarm.peers.delete(peer.remotePublicKey.toString("hex"));
+            if(!_this.blocked_connections.includes(peer.stream.rawStream.id)){
+              _this.blocked_connections.push(peer.stream.rawStream.id);
             }
-
-            _this.banlist[pubKey].d += 1;
-
-            console.log(pubKey, _this.banlist[pubKey]);
+            if(!_this.blocked_peers.includes(peer.remotePublicKey.toString("hex"))){
+              _this.blocked_peers.push(peer.remotePublicKey.toString("hex"));
+            }
+            peer.channel._close(true);
+            _this.swarm.connections.delete(peer.stream);
+            _this.swarm._allConnections.delete(peer.stream);
           }
         }
-      );
+
+        if(_this.blocked_connections.includes(connection.rawStream.id) ||
+            _this.blocked_peers.includes(connection.remotePublicKey.toString("hex")) ||
+            peerInfo.banned){
+          peerInfo.ban(true);
+          console.log('Replication denied', connection.remotePublicKey.toString("hex"));
+        } else {
+          console.log(
+              "Connected to peer:",
+              connection.remotePublicKey.toString("hex")
+          );
+
+          _this.core.replicate(connection);
+        }
+
+      }, _this.peerCount * 2000);
     });
 
     const discovery = this.swarm.join(this.core.discoveryKey, {

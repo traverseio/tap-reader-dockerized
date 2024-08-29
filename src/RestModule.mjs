@@ -3,6 +3,12 @@ import Fastify from "fastify";
 import TracManager from "./TracManager.mjs";
 import swagger from "@fastify/swagger";
 import fastifySwaggerUi from "@fastify/swagger-ui";
+import * as path from "path";
+import * as fs from "fs";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export default class RestModule {
   /**
@@ -15,7 +21,23 @@ export default class RestModule {
   fastify;
   constructor(tracManager) {
     this.tracManager = tracManager;
-    this.fastify = Fastify({ logger: false });
+
+    if (config.get("enableRestSSL")) {
+      const cert = config.get("sslCert");
+
+      this.fastify = Fastify({
+        logger: false,
+        https: {
+          allowHTTP1: true,
+          key: fs.readFileSync(cert.key),
+          cert: fs.readFileSync(cert.cert),
+        },
+      });
+    } else {
+      this.fastify = Fastify({
+        logger: false,
+      });
+    }
 
     if (config.get("enableRestApiDocs")) {
       // Initialize routes
@@ -168,6 +190,1163 @@ export default class RestModule {
       );
 
       fastify.get(
+        "/getTickerDeployedListLength/:ticker/:transaction_hash",
+        {
+          schema: {
+            description:
+              "Returns the length of deployments of a given ticker and tx hash.",
+            tags: ["Transactions: Deployed"],
+            params: {
+              type: "object",
+              required: ["ticker", "transaction_hash"],
+              properties: {
+                ticker: { type: "string" },
+                transaction_hash: { type: "string" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getTickerDeployedListLength(
+                request.params.ticker,
+                request.params.transaction_hash
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getTickerDeployedList/:ticker/:transaction_hash",
+        {
+          schema: {
+            description: "Returns deployments of a given ticker and tx hash.",
+            tags: ["Transactions: Deployed"],
+            params: {
+              type: "object",
+              required: ["ticker", "transaction_hash"],
+              properties: {
+                ticker: { type: "string" },
+                transaction_hash: { type: "string" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+            const result =
+              await this.tracManager.tapProtocol.getTickerDeployedList(
+                request.params.ticker,
+                request.params.transaction_hash,
+                offset,
+                max
+              );
+            reply.send({ result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getDeployedListLength/:transaction_hash",
+        {
+          schema: {
+            description: "Returns deployments of a given tx hash.",
+            tags: ["Transactions: Deployed"],
+            params: {
+              type: "object",
+              required: ["transaction_hash"],
+              properties: {
+                transaction_hash: { type: "string" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getDeployedListLength(
+                request.params.transaction_hash
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getDeployedList/:transaction_hash",
+        {
+          schema: {
+            description:
+              "Returns the length of deployments of a given tx hash.",
+            tags: ["Transactions: Deployed"],
+            params: {
+              type: "object",
+              required: ["transaction_hash"],
+              properties: {
+                transaction_hash: { type: "string" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+            const result = await this.tracManager.tapProtocol.getDeployedList(
+              request.params.transaction_hash,
+              offset,
+              max
+            );
+            reply.send({ result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getTickerDeployedListByBlockLength/:ticker/:block",
+        {
+          schema: {
+            description:
+              "Returns the length of deployments of a given ticker and block.",
+            tags: ["Blocks: Deployed"],
+            params: {
+              type: "object",
+              required: ["ticker", "block"],
+              properties: {
+                ticker: { type: "string" },
+                block: { type: "integer" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getTickerDeployedListByBlockLength(
+                request.params.ticker,
+                request.params.block
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getTickerDeployedListByBlock/:ticker/:block",
+        {
+          schema: {
+            description: "Returns deployments of a given ticker and block.",
+            tags: ["Blocks: Deployed"],
+            params: {
+              type: "object",
+              required: ["ticker", "block"],
+              properties: {
+                ticker: { type: "string" },
+                block: { type: "integer" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+            const result =
+              await this.tracManager.tapProtocol.getTickerDeployedListByBlock(
+                request.params.ticker,
+                request.params.block,
+                offset,
+                max
+              );
+            reply.send({ result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getDeployedListByBlockLength/:block",
+        {
+          schema: {
+            description: "Returns the length of deployments of a given block.",
+            tags: ["Blocks: Deployed"],
+            params: {
+              type: "object",
+              required: ["block"],
+              properties: {
+                block: { type: "integer" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getDeployedListByBlockLength(
+                request.params.block
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getDeployedListByBlock/:block",
+        {
+          schema: {
+            description: "Returns deployments of a given block.",
+            tags: ["Blocks: Deployed"],
+            params: {
+              type: "object",
+              required: ["block"],
+              properties: {
+                block: { type: "integer" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+            const result =
+              await this.tracManager.tapProtocol.getDeployedListByBlock(
+                request.params.block,
+                offset,
+                max
+              );
+            reply.send({ result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getTickerMintedListLength/:ticker/:transaction_hash",
+        {
+          schema: {
+            description:
+              "Returns the length of mint inscriptions of a given ticker and tx hash.",
+            tags: ["Transactions: Minted"],
+            params: {
+              type: "object",
+              required: ["ticker", "transaction_hash"],
+              properties: {
+                ticker: { type: "string" },
+                transaction_hash: { type: "string" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getTickerMintedListLength(
+                request.params.ticker,
+                request.params.transaction_hash
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getTickerMintedList/:ticker/:transaction_hash",
+        {
+          schema: {
+            description:
+              "Returns mint inscriptions of a given ticker and tx hash.",
+            tags: ["Transactions: Minted"],
+            params: {
+              type: "object",
+              required: ["ticker", "transaction_hash"],
+              properties: {
+                ticker: { type: "string" },
+                transaction_hash: { type: "string" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+            const result =
+              await this.tracManager.tapProtocol.getTickerMintedList(
+                request.params.ticker,
+                request.params.transaction_hash,
+                offset,
+                max
+              );
+            reply.send({ result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getMintedListLength/:transaction_hash",
+        {
+          schema: {
+            description: "Returns mint inscriptions of a given tx hash.",
+            tags: ["Transactions: Minted"],
+            params: {
+              type: "object",
+              required: ["transaction_hash"],
+              properties: {
+                transaction_hash: { type: "string" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getMintedListLength(
+                request.params.transaction_hash
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getMintedList/:transaction_hash",
+        {
+          schema: {
+            description:
+              "Returns the length of mint inscriptions of a given tx hash.",
+            tags: ["Transactions: Minted"],
+            params: {
+              type: "object",
+              required: ["transaction_hash"],
+              properties: {
+                transaction_hash: { type: "string" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+            const result = await this.tracManager.tapProtocol.getMintedList(
+              request.params.transaction_hash,
+              offset,
+              max
+            );
+            reply.send({ result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getTickerMintedListByBlockLength/:ticker/:block",
+        {
+          schema: {
+            description:
+              "Returns the length of mint inscriptions of a given ticker and block.",
+            tags: ["Blocks: Minted"],
+            params: {
+              type: "object",
+              required: ["ticker", "block"],
+              properties: {
+                ticker: { type: "string" },
+                block: { type: "integer" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getTickerMintedListByBlockLength(
+                request.params.ticker,
+                request.params.block
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getTickerMintedListByBlock/:ticker/:block",
+        {
+          schema: {
+            description:
+              "Returns mint inscriptions of a given ticker and block.",
+            tags: ["Blocks: Minted"],
+            params: {
+              type: "object",
+              required: ["ticker", "block"],
+              properties: {
+                ticker: { type: "string" },
+                block: { type: "integer" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+            const result =
+              await this.tracManager.tapProtocol.getTickerMintedListByBlock(
+                request.params.ticker,
+                request.params.block,
+                offset,
+                max
+              );
+            reply.send({ result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getMintedListByBlockLength/:block",
+        {
+          schema: {
+            description:
+              "Returns the length of mint inscriptions of a given block.",
+            tags: ["Blocks: Minted"],
+            params: {
+              type: "object",
+              required: ["block"],
+              properties: {
+                block: { type: "integer" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getMintedListByBlockLength(
+                request.params.block
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getMintedListByBlock/:block",
+        {
+          schema: {
+            description: "Returns mint inscriptions of a given block.",
+            tags: ["Blocks: Minted"],
+            params: {
+              type: "object",
+              required: ["block"],
+              properties: {
+                block: { type: "integer" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+            const result =
+              await this.tracManager.tapProtocol.getMintedListByBlock(
+                request.params.block,
+                offset,
+                max
+              );
+            reply.send({ result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getTickerInscribeTransferListLength/:ticker/:transaction_hash",
+        {
+          schema: {
+            description:
+              "Returns the length of transfer-inscriptions of a given ticker and tx hash.",
+            tags: ["Transactions: Inscribe Transferred"],
+            params: {
+              type: "object",
+              required: ["ticker", "transaction_hash"],
+              properties: {
+                ticker: { type: "string" },
+                transaction_hash: { type: "string" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getTickerInscribeTransferListLength(
+                request.params.ticker,
+                request.params.transaction_hash
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getTickerInscribeTransferList/:ticker/:transaction_hash",
+        {
+          schema: {
+            description:
+              "Returns transfer-inscriptions of a given ticker and tx hash.",
+            tags: ["Transactions: Inscribe Transferred"],
+            params: {
+              type: "object",
+              required: ["ticker", "transaction_hash"],
+              properties: {
+                ticker: { type: "string" },
+                transaction_hash: { type: "string" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+            const result =
+              await this.tracManager.tapProtocol.getTickerInscribeTransferList(
+                request.params.ticker,
+                request.params.transaction_hash,
+                offset,
+                max
+              );
+            reply.send({ result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getInscribeTransferListLength/:transaction_hash",
+        {
+          schema: {
+            description: "Returns transfer-inscriptions of a given tx hash.",
+            tags: ["Transactions: Inscribe Transferred"],
+            params: {
+              type: "object",
+              required: ["transaction_hash"],
+              properties: {
+                transaction_hash: { type: "string" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getInscribeTransferListLength(
+                request.params.transaction_hash
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getInscribeTransferList/:transaction_hash",
+        {
+          schema: {
+            description:
+              "Returns the length of transfer-inscriptions of a given tx hash.",
+            tags: ["Transactions: Inscribe Transferred"],
+            params: {
+              type: "object",
+              required: ["transaction_hash"],
+              properties: {
+                transaction_hash: { type: "string" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+            const result =
+              await this.tracManager.tapProtocol.getInscribeTransferList(
+                request.params.transaction_hash,
+                offset,
+                max
+              );
+            reply.send({ result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getTickerInscribeTransferListByBlockLength/:ticker/:block",
+        {
+          schema: {
+            description:
+              "Returns the length of transfer-inscriptions of a given ticker and block.",
+            tags: ["Blocks: Inscribe Transferred"],
+            params: {
+              type: "object",
+              required: ["ticker", "block"],
+              properties: {
+                ticker: { type: "string" },
+                block: { type: "integer" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getTickerInscribeTransferListByBlockLength(
+                request.params.ticker,
+                request.params.block
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getTickerInscribeTransferListByBlock/:ticker/:block",
+        {
+          schema: {
+            description:
+              "Returns transfer-inscriptions of a given ticker and block.",
+            tags: ["Blocks: Inscribe Transferred"],
+            params: {
+              type: "object",
+              required: ["ticker", "block"],
+              properties: {
+                ticker: { type: "string" },
+                block: { type: "integer" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+            const result =
+              await this.tracManager.tapProtocol.getTickerInscribeTransferListByBlock(
+                request.params.ticker,
+                request.params.block,
+                offset,
+                max
+              );
+            reply.send({ result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getInscribeTransferListByBlockLength/:block",
+        {
+          schema: {
+            description:
+              "Returns the length of transfer-inscriptions of a given block.",
+            tags: ["Blocks: Inscribe Transferred"],
+            params: {
+              type: "object",
+              required: ["block"],
+              properties: {
+                block: { type: "integer" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getInscribeTransferListByBlockLength(
+                request.params.block
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getInscribeTransferListByBlock/:block",
+        {
+          schema: {
+            description: "Returns transfer-inscriptions of a given block.",
+            tags: ["Blocks: Inscribe Transferred"],
+            params: {
+              type: "object",
+              required: ["block"],
+              properties: {
+                block: { type: "integer" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+            const result =
+              await this.tracManager.tapProtocol.getInscribeTransferListByBlock(
+                request.params.block,
+                offset,
+                max
+              );
+            reply.send({ result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getTickerTransferredListLength/:ticker/:transaction_hash",
+        {
+          schema: {
+            description:
+              "Returns the length of actual transferred inscriptions of a given ticker and tx hash.",
+            tags: ["Transactions: Transferred"],
+            params: {
+              type: "object",
+              required: ["ticker", "transaction_hash"],
+              properties: {
+                ticker: { type: "string" },
+                transaction_hash: { type: "string" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getTickerTransferredListLength(
+                request.params.ticker,
+                request.params.transaction_hash
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getTickerTransferredList/:ticker/:transaction_hash",
+        {
+          schema: {
+            description:
+              "Returns actual transferred inscriptions of a given ticker and tx hash.",
+            tags: ["Transactions: Transferred"],
+            params: {
+              type: "object",
+              required: ["ticker", "transaction_hash"],
+              properties: {
+                ticker: { type: "string" },
+                transaction_hash: { type: "string" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+            const result =
+              await this.tracManager.tapProtocol.getTickerTransferredList(
+                request.params.ticker,
+                request.params.transaction_hash,
+                offset,
+                max
+              );
+            reply.send({ result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getTransferredListLength/:transaction_hash",
+        {
+          schema: {
+            description:
+              "Returns actual transferred inscriptions of a given tx hash.",
+            tags: ["Transactions: Transferred"],
+            params: {
+              type: "object",
+              required: ["transaction_hash"],
+              properties: {
+                transaction_hash: { type: "string" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getTransferredListLength(
+                request.params.transaction_hash
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getTransferredList/:transaction_hash",
+        {
+          schema: {
+            description:
+              "Returns the length of actual transferred inscriptions of a given tx hash.",
+            tags: ["Transactions: Transferred"],
+            params: {
+              type: "object",
+              required: ["transaction_hash"],
+              properties: {
+                transaction_hash: { type: "string" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+            const result =
+              await this.tracManager.tapProtocol.getTransferredList(
+                request.params.transaction_hash,
+                offset,
+                max
+              );
+            reply.send({ result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getTickerTransferredListByBlockLength/:ticker/:block",
+        {
+          schema: {
+            description:
+              "Returns the length of actual transferred inscriptions of a given ticker and block.",
+            tags: ["Blocks: Transferred"],
+            params: {
+              type: "object",
+              required: ["ticker", "block"],
+              properties: {
+                ticker: { type: "string" },
+                block: { type: "integer" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getTickerTransferredListByBlockLength(
+                request.params.ticker,
+                request.params.block
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getTickerTransferredListByBlock/:ticker/:block",
+        {
+          schema: {
+            description:
+              "Returns actual transferred inscriptions of a given ticker and block.",
+            tags: ["Blocks: Transferred"],
+            params: {
+              type: "object",
+              required: ["ticker", "block"],
+              properties: {
+                ticker: { type: "string" },
+                block: { type: "integer" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+            const result =
+              await this.tracManager.tapProtocol.getTickerTransferredListByBlock(
+                request.params.ticker,
+                request.params.block,
+                offset,
+                max
+              );
+            reply.send({ result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getTransferredListByBlockLength/:block",
+        {
+          schema: {
+            description:
+              "Returns the length of actual transferred inscriptions of a given block.",
+            tags: ["Blocks: Transferred"],
+            params: {
+              type: "object",
+              required: ["block"],
+              properties: {
+                block: { type: "integer" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getTransferredListByBlockLength(
+                request.params.block
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getTransferredListByBlock/:block",
+        {
+          schema: {
+            description:
+              "Returns actual transferred inscriptions of a given block.",
+            tags: ["Blocks: Transferred"],
+            params: {
+              type: "object",
+              required: ["block"],
+              properties: {
+                block: { type: "integer" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+            const result =
+              await this.tracManager.tapProtocol.getTransferredListByBlock(
+                request.params.block,
+                offset,
+                max
+              );
+            reply.send({ result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
         "/getDmtMintHoldersHistoryListLength/:inscription_id",
         {
           schema: {
@@ -267,16 +1446,17 @@ export default class RestModule {
       );
 
       fastify.get(
-        "/getDmtMintHolderByBlock/:block",
+        "/getDmtMintHolderByBlock/:ticker/:block",
         {
           schema: {
             description:
-              "Returns a history object with element, owner and block data but based on a given block instead of an inscription id.",
+              "Returns a history object with element, owner and block data but based on a given ticker and block instead of an inscription id.",
             tags: ["DMT"],
             params: {
               type: "object",
-              required: ["block"],
+              required: ["ticker", "block"],
               properties: {
+                ticker: { type: "string" },
                 block: { type: "integer" },
               },
             },
@@ -286,6 +1466,7 @@ export default class RestModule {
           try {
             const result =
               await this.tracManager.tapProtocol.getDmtMintHolderByBlock(
+                request.params.ticker,
                 request.params.block
               );
             reply.send({ result });
@@ -534,7 +1715,7 @@ export default class RestModule {
         {
           schema: {
             description: "Get remaining mint tokens for a given ticker",
-            tags: ["Token"],
+            tags: ["Minting"],
             params: {
               type: "object",
               required: ["ticker"],
@@ -865,6 +2046,113 @@ export default class RestModule {
                                     ]
                                 }
                             */
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getAccountTokensBalance/:address",
+        {
+          schema: {
+            description:
+              "Retrieves a list of tokens and total balance, transferable of each by an address",
+            tags: ["Token"],
+            params: {
+              type: "object",
+              required: ["address"],
+              properties: {
+                address: { type: "string" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+            response: {
+              200: {
+                description: "Successful response",
+                type: "object",
+                properties: {
+                  data: {
+                    type: "object",
+                    properties: {
+                      total: { type: "integer" },
+                      list: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            ticker: { type: "string" },
+                            overallBalance: { type: "string" },
+                            transferableBalance: { type: "string" },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+              500: {
+                description: "Internal server error",
+                type: "object",
+                properties: {
+                  error: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+
+            const result =
+              await this.tracManager.tapProtocol.getAccountTokensWithBalance(
+                request.params.address,
+                offset,
+                max
+              );
+            reply.send({ data: result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getAccountTokenDetail/:address/:ticker",
+        {
+          schema: {
+            description:
+              "Retrieve token info , total balance, transferable balance, tokens transfers list (include sent or not) by specific token of an account",
+            tags: ["Token"],
+            params: {
+              type: "object",
+              required: ["address", "ticker"],
+              properties: {
+                address: { type: "string" },
+                ticker: { type: "string" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getAccountTokenDetail(
+                request.params.address,
+                request.params.ticker
+              );
+            reply.send({ data: result });
           } catch (e) {
             console.error(e);
             reply.status(500).send({ error: "Internal Server Error" });
@@ -1322,7 +2610,7 @@ export default class RestModule {
           schema: {
             description:
               "Retrieve details of a specific trade based on its inscription ID",
-            tags: ["Trade"],
+            tags: ["Trades"],
             params: {
               type: "object",
               required: ["inscription_id"],
@@ -1371,7 +2659,7 @@ export default class RestModule {
           schema: {
             description:
               "Get the total number of trades for a specific address and ticker",
-            tags: ["Trade"],
+            tags: ["Trades"],
             params: {
               type: "object",
               required: ["address", "ticker"],
@@ -1425,7 +2713,7 @@ export default class RestModule {
           schema: {
             description:
               "Retrieve a list of received transactions for a specific address and ticker",
-            tags: ["Transactions"],
+            tags: ["Sent"],
             params: {
               type: "object",
               required: ["address", "ticker"],
@@ -1490,7 +2778,7 @@ export default class RestModule {
           schema: {
             description:
               "Retrieve a list of trades for a specific address and ticker",
-            tags: ["Trade"],
+            tags: ["Trades"],
             params: {
               type: "object",
               required: ["address", "ticker"],
@@ -1560,7 +2848,7 @@ export default class RestModule {
           schema: {
             description:
               "Check if a given token-auth inscription has been cancelled",
-            tags: ["Auth"],
+            tags: ["Token Authority"],
             params: {
               type: "object",
               required: ["inscription_id"],
@@ -1598,6 +2886,35 @@ export default class RestModule {
         }
       );
 
+      fastify.get(
+        "/getPrivilegeAuthCancelled/:inscription_id",
+        {
+          schema: {
+            description:
+              "Check if a given privilege-auth inscription has been cancelled",
+            tags: ["Privilege Authority"],
+            params: {
+              type: "object",
+              required: ["inscription_id"],
+              properties: {
+                inscription_id: { type: "string" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getPrivilegeAuthCancelled(
+                request.params.inscription_id
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
       // getAuthHashExists
       fastify.get(
         "/getAuthHashExists/:hash",
@@ -1605,7 +2922,7 @@ export default class RestModule {
           schema: {
             description:
               "Check if a given hash exists in the token-auth system",
-            tags: ["Auth"],
+            tags: ["Token Authority"],
             params: {
               type: "object",
               required: ["hash"],
@@ -1643,13 +2960,42 @@ export default class RestModule {
         }
       );
 
+      fastify.get(
+        "/getPrivilegeAuthHashExists/:hash",
+        {
+          schema: {
+            description:
+              "Check if a given hash exists in the privilege-auth system",
+            tags: ["Privilege Authority"],
+            params: {
+              type: "object",
+              required: ["hash"],
+              properties: {
+                hash: { type: "string" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getPrivilegeAuthHashExists(
+                request.params.hash
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
       // getRedeemListLength
       fastify.get(
         "/getRedeemListLength",
         {
           schema: {
             description: "Get the total number of redeems across all tokens",
-            tags: ["Redeem"],
+            tags: ["Token Authority: Redeem"],
             response: {
               200: {
                 description: "Successful response",
@@ -1686,7 +3032,7 @@ export default class RestModule {
           schema: {
             description:
               "Retrieve a list of all redeem records across all tokens",
-            tags: ["Redeem"],
+            tags: ["Token Authority: Redeem"],
             querystring: {
               type: "object",
               properties: {
@@ -1736,7 +3082,7 @@ export default class RestModule {
           schema: {
             description:
               "Get the total number of redeems performed by a specific address",
-            tags: ["Redeem"],
+            tags: ["Token Authority: Redeem"],
             params: {
               type: "object",
               required: ["address"],
@@ -1782,7 +3128,7 @@ export default class RestModule {
           schema: {
             description:
               "Retrieve a list of redeem records for a specific address",
-            tags: ["Redeem"],
+            tags: ["Token Authority: Redeem"],
             params: {
               type: "object",
               required: ["address"],
@@ -1840,8 +3186,8 @@ export default class RestModule {
         {
           schema: {
             description:
-              "Get the total number of auth records for a specific address",
-            tags: ["Auth"],
+              "Get the total number of token auth records for a specific address",
+            tags: ["Token Authority"],
             params: {
               type: "object",
               required: ["address"],
@@ -1880,14 +3226,59 @@ export default class RestModule {
         }
       );
 
+      fastify.get(
+        "/getAccountPrivilegeAuthListLength/:address",
+        {
+          schema: {
+            description:
+              "Get the total number of privilege auth records for a specific address",
+            tags: ["Privilege Authority"],
+            params: {
+              type: "object",
+              required: ["address"],
+              properties: {
+                address: { type: "string" },
+              },
+            },
+            response: {
+              200: {
+                description: "Successful response",
+                type: "object",
+                properties: {
+                  result: { type: "number" },
+                },
+              },
+              500: {
+                description: "Internal server error",
+                type: "object",
+                properties: {
+                  error: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getAccountPrivilegeAuthListLength(
+                request.params.address
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
       // getAccountAuthList
       fastify.get(
         "/getAccountAuthList/:address",
         {
           schema: {
             description:
-              "Retrieve a list of auth records for a specific address",
-            tags: ["Auth"],
+              "Retrieve a list of token auth records for a specific address",
+            tags: ["Token Authority"],
             params: {
               type: "object",
               required: ["address"],
@@ -1939,14 +3330,53 @@ export default class RestModule {
         }
       );
 
+      fastify.get(
+        "/getAccountPrivilegeAuthList/:address",
+        {
+          schema: {
+            description:
+              "Retrieve a list of privilege auth records for a specific address",
+            tags: ["Privilege Authority"],
+            params: {
+              type: "object",
+              required: ["address"],
+              properties: {
+                address: { type: "string" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          let { offset, max } = request.query;
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getAccountPrivilegeAuthList(
+                request.params.address,
+                offset,
+                max
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
       // getAuthListLength
       fastify.get(
         "/getAuthListLength",
         {
           schema: {
             description:
-              "Get the total number of auth records across all addresses",
-            tags: ["Auth"],
+              "Get the total number of token auth records across all addresses",
+            tags: ["Token Authority"],
             response: {
               200: {
                 description: "Successful response",
@@ -1976,6 +3406,42 @@ export default class RestModule {
         }
       );
 
+      fastify.get(
+        "/getPrivilegeAuthListLength",
+        {
+          schema: {
+            description:
+              "Get the total number of privilege auth records across all addresses",
+            tags: ["Privilege Authority"],
+            response: {
+              200: {
+                description: "Successful response",
+                type: "object",
+                properties: {
+                  result: { type: "number" },
+                },
+              },
+              500: {
+                description: "Internal server error",
+                type: "object",
+                properties: {
+                  error: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getPrivilegeAuthListLength();
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
       // getAuthList
       fastify.get(
         "/getAuthList",
@@ -1983,7 +3449,7 @@ export default class RestModule {
           schema: {
             description:
               "Retrieve a list of all auth records across all addresses",
-            tags: ["Auth"],
+            tags: ["Token Authority"],
             querystring: {
               type: "object",
               properties: {
@@ -2027,11 +3493,227 @@ export default class RestModule {
       );
 
       fastify.get(
+        "/getPrivilegeAuthList",
+        {
+          schema: {
+            description:
+              "Retrieve a list of all privilege auth records across all addresses",
+            tags: ["Privilege Authority"],
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          let { offset, max } = request.query;
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getPrivilegeAuthList(
+                offset,
+                max
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getPrivilegeAuthIsVerified/:privilege_inscription_id/:collection_name/:verified_hash/:sequence",
+        {
+          schema: {
+            description:
+              "Check if a signature has been verified by an authority",
+            tags: ["Privilege Authority: Verified"],
+            params: {
+              type: "object",
+              required: [
+                "privilege_inscription_id",
+                "collection_name",
+                "verified_hash",
+                "sequence",
+              ],
+              properties: {
+                privilege_inscription_id: { type: "string" },
+                collection_name: { type: "string" },
+                verified_hash: { type: "string" },
+                sequence: { type: "integer" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getPrivilegeAuthIsVerified(
+                request.params.privilege_inscription_id,
+                request.params.collection_name,
+                request.params.verified_hash,
+                request.params.sequence
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getPrivilegeAuthorityListLength/:privilege_inscription_id",
+        {
+          schema: {
+            description:
+              "Returns the amount of verified signatures of a privilege authority.",
+            tags: ["Privilege Authority: Verified"],
+            params: {
+              type: "object",
+              required: ["privilege_inscription_id"],
+              properties: {
+                privilege_inscription_id: { type: "string" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getPrivilegeAuthorityListLength(
+                request.params.privilege_inscription_id
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getPrivilegeAuthorityList/:privilege_inscription_id",
+        {
+          schema: {
+            description: "Returns the verified items of a privilege authority.",
+            tags: ["Privilege Authority: Verified"],
+            params: {
+              type: "object",
+              required: ["privilege_inscription_id"],
+              properties: {
+                privilege_inscription_id: { type: "string" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+            const result =
+              await this.tracManager.tapProtocol.getPrivilegeAuthorityList(
+                request.params.privilege_inscription_id,
+                offset,
+                max
+              );
+            reply.send({ result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getPrivilegeAuthorityCollectionListLength/:privilege_inscription_id/:collection_name",
+        {
+          schema: {
+            description:
+              "Returns the amount of verified signatures in a collection of a privilege authority.",
+            tags: ["Privilege Authority: Verified"],
+            params: {
+              type: "object",
+              required: ["privilege_inscription_id", "collection_name"],
+              properties: {
+                privilege_inscription_id: { type: "string" },
+                collection_name: { type: "string" },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            const result =
+              await this.tracManager.tapProtocol.getPrivilegeAuthorityCollectionListLength(
+                request.params.privilege_inscription_id,
+                request.params.collection_name
+              );
+            reply.send({ result });
+          } catch (e) {
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
+        "/getPrivilegeAuthorityCollectionList/:privilege_inscription_id/:collection_name",
+        {
+          schema: {
+            description:
+              "Returns the verified items of verified signatures in a collection of a privilege authority.",
+            tags: ["Privilege Authority: Verified"],
+            params: {
+              type: "object",
+              required: ["privilege_inscription_id", "collection_name"],
+              properties: {
+                privilege_inscription_id: { type: "string" },
+                collection_name: { type: "string" },
+              },
+            },
+            querystring: {
+              type: "object",
+              properties: {
+                offset: { type: "integer", default: 0 },
+                max: { type: "integer", default: 500 },
+              },
+            },
+          },
+        },
+        async (request, reply) => {
+          try {
+            let { offset, max } = request.query;
+            offset = offset ? offset : 0;
+            max = max ? max : 500;
+            const result =
+              await this.tracManager.tapProtocol.getPrivilegeAuthorityCollectionList(
+                request.params.privilege_inscription_id,
+                request.params.collection_name,
+                offset,
+                max
+              );
+            reply.send({ result });
+          } catch (e) {
+            console.error(e);
+            reply.status(500).send({ error: "Internal Server Error" });
+          }
+        }
+      );
+
+      fastify.get(
         "/getTickerTradesListLength/:ticker",
         {
           schema: {
             description: "Get the total number of trades for a specific ticker",
-            tags: ["Trade"],
+            tags: ["Trades"],
             params: {
               type: "object",
               required: ["ticker"],
@@ -2076,7 +3758,7 @@ export default class RestModule {
         {
           schema: {
             description: "Retrieve a list of trades for a specific ticker",
-            tags: ["Trade"],
+            tags: ["Trades"],
             params: {
               type: "object",
               required: ["ticker"],
@@ -2134,7 +3816,7 @@ export default class RestModule {
         {
           schema: {
             description: "Get the total number of trades across all tickers",
-            tags: ["Trade"],
+            tags: ["Trades"],
             response: {
               200: {
                 description: "Successful response",
@@ -2171,7 +3853,7 @@ export default class RestModule {
           schema: {
             description:
               "Retrieve a list of all trade records across all tickers",
-            tags: ["Trade"],
+            tags: ["Trades"],
             querystring: {
               type: "object",
               properties: {
@@ -2520,7 +4202,7 @@ export default class RestModule {
           schema: {
             description:
               "Get the total number of sent transactions for a specific address and ticker",
-            tags: ["Transactions"],
+            tags: ["Sent"],
             params: {
               type: "object",
               required: ["address", "ticker"],
@@ -2568,7 +4250,7 @@ export default class RestModule {
           schema: {
             description:
               "Retrieve a list of sent transaction records for a specific address and ticker",
-            tags: ["Transactions"],
+            tags: ["Sent"],
             params: {
               type: "object",
               required: ["address", "ticker"],
@@ -2629,7 +4311,7 @@ export default class RestModule {
           schema: {
             description:
               "Get the total number of trades filled for a specific address and ticker",
-            tags: ["Trade"],
+            tags: ["Trades"],
             params: {
               type: "object",
               required: ["address", "ticker"],
@@ -2677,7 +4359,7 @@ export default class RestModule {
           schema: {
             description:
               "Retrieve a list of received trades filled for a specific address and ticker",
-            tags: ["Trade"],
+            tags: ["Trades"],
             params: {
               type: "object",
               required: ["address", "ticker"],
@@ -2738,7 +4420,7 @@ export default class RestModule {
           schema: {
             description:
               "Get the total number of trades filled for a specific address and ticker",
-            tags: ["Trade"],
+            tags: ["Trades"],
             params: {
               type: "object",
               required: ["address", "ticker"],
@@ -2786,7 +4468,7 @@ export default class RestModule {
           schema: {
             description:
               "Retrieve a list of trades filled for a specific address and ticker",
-            tags: ["Trade"],
+            tags: ["Trades"],
             params: {
               type: "object",
               required: ["address", "ticker"],
@@ -2847,7 +4529,7 @@ export default class RestModule {
           schema: {
             description:
               "Get the total number of trades filled for a specific ticker",
-            tags: ["Trade"],
+            tags: ["Trades"],
             params: {
               type: "object",
               required: ["ticker"],
@@ -2893,7 +4575,7 @@ export default class RestModule {
           schema: {
             description:
               "Retrieve a list of filled trade records for a specific ticker",
-            tags: ["Trade"],
+            tags: ["Trades"],
             params: {
               type: "object",
               required: ["ticker"],
@@ -2952,7 +4634,7 @@ export default class RestModule {
           schema: {
             description:
               "Get the total number of filled trades across all tickers",
-            tags: ["Trade"],
+            tags: ["Trades"],
             response: {
               200: {
                 description: "Successful response",
@@ -2988,7 +4670,7 @@ export default class RestModule {
         {
           schema: {
             description: "Retrieve a list of trades that have been filled",
-            tags: ["Trade"],
+            tags: ["Trades"],
             querystring: {
               type: "object",
               properties: {
@@ -3039,7 +4721,7 @@ export default class RestModule {
           schema: {
             description:
               "Get the total number of sent transactions for a given ticker",
-            tags: ["Transactions"],
+            tags: ["Sent"],
             params: {
               type: "object",
               required: ["ticker"],
@@ -3085,7 +4767,7 @@ export default class RestModule {
           schema: {
             description:
               "Retrieve a list of sent transactions for a specific ticker",
-            tags: ["Transactions"],
+            tags: ["Sent"],
             params: {
               type: "object",
               required: ["ticker"],
@@ -3142,7 +4824,7 @@ export default class RestModule {
         {
           schema: {
             description: "Get the total length of the sent transactions list",
-            tags: ["Transactions"],
+            tags: ["Sent"],
             response: {
               200: {
                 description: "Successful response",
@@ -3178,7 +4860,7 @@ export default class RestModule {
         {
           schema: {
             description: "Retrieve the list of all sent transactions",
-            tags: ["Transactions"],
+            tags: ["Sent"],
             querystring: {
               type: "object",
               properties: {
